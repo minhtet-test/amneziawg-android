@@ -42,7 +42,7 @@ jobs:
 
       # ၆။ APK ကို Keystore ဖြင့် Sign လုပ်ခြင်း
       - name: Sign Release APK
-        uses: r0adkll/sign-android-release@v1
+        uses: r0adkll/sign-android-release@master
         id: sign_app
         with:
           releaseDirectory: ui/build/outputs/apk/release
