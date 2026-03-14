@@ -12,13 +12,13 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # ၁။ Project ကုဒ်များကို ယူခြင်း (Submodule များ အားလုံးကိုပါ ယူရန် ပြင်ဆင်ထားသည်)
+      # ၁။ Project ကုဒ်များကို ယူခြင်း
       - name: Checkout Source Code
         uses: actions/checkout@v4
         with:
           submodules: 'recursive'
 
-      # ၂။ Go Language ထည့်သွင်းခြင်း (WireGuard/Amnezia tunnel များအတွက် လိုအပ်ပါသည်)
+      # ၂။ Go Language ထည့်သွင်းခြင်း
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
@@ -40,21 +40,34 @@ jobs:
       - name: Build Release APK
         run: ./gradlew assembleRelease
 
-      # ၆။ APK ကို Keystore ဖြင့် Sign လုပ်ခြင်း
-      - name: Sign Release APK
-        uses: r0adkll/sign-android-release@master
-        id: sign_app
-        with:
-          releaseDirectory: ui/build/outputs/apk/release
-          signingKeyBase64: ${{ secrets.KEYSTORE_FILE_BASE64 }}
-          alias: ${{ secrets.KEY_ALIAS }}
-          keyStorePassword: ${{ secrets.KEYSTORE_PASSWORD }}
-          keyPassword: ${{ secrets.KEY_PASSWORD }}
-          buildToolsVersion: 34.0.0
+      # ၆။ Android မူလ Tools များကို သုံး၍ APK ကို Sign လုပ်ခြင်း (အသေချာဆုံး နည်းလမ်း)
+      - name: Sign Release APK Natively
+        env:
+          KEYSTORE_B64: ${{ secrets.KEYSTORE_FILE_BASE64 }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASS: ${{ secrets.KEY_PASSWORD }}
+          STORE_PASS: ${{ secrets.KEYSTORE_PASSWORD }}
+        run: |
+          # Keystore ဖိုင်ကို ပြန်ထုတ်ခြင်း
+          echo "$KEYSTORE_B64" | base64 --decode > my-keystore.jks
+          
+          # APK လမ်းကြောင်းကို အလိုအလျောက် ရှာခြင်း
+          APK_PATH=$(find ui/build/outputs/apk/release -name "*.apk" | head -n 1)
+          echo "Found APK: $APK_PATH"
+          
+          # နောက်ဆုံးထွက် Build Tools လမ်းကြောင်းကို အလိုအလျောက် ရှာခြင်း
+          BUILD_TOOLS_DIR=$(ls -d $ANDROID_HOME/build-tools/* | sort -V | tail -n 1)
+          echo "Using Build Tools: $BUILD_TOOLS_DIR"
+          
+          # Zipalign ဖြင့် ဖိုင်ကို စီစဉ်ခြင်း
+          $BUILD_TOOLS_DIR/zipalign -v -p 4 "$APK_PATH" app-release-signed.apk
+          
+          # Apksigner ဖြင့် Sign လုပ်ခြင်း
+          $BUILD_TOOLS_DIR/apksigner sign --ks my-keystore.jks --ks-key-alias "$KEY_ALIAS" --ks-pass pass:"$STORE_PASS" --key-pass pass:"$KEY_PASS" app-release-signed.apk
 
       # ၇။ Sign လုပ်ပြီးသား APK ဖိုင်ကို သိမ်းဆည်းခြင်း
       - name: Upload Release APK
         uses: actions/upload-artifact@v4
         with:
           name: app-release-signed-apk
-          path: ${{steps.sign_app.outputs.signedReleaseFile}}
+          path: app-release-signed.apk
