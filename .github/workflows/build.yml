@@ -50,6 +50,7 @@ jobs:
           alias: ${{ secrets.KEY_ALIAS }}
           keyStorePassword: ${{ secrets.KEYSTORE_PASSWORD }}
           keyPassword: ${{ secrets.KEY_PASSWORD }}
+          buildToolsVersion: 34.0.0
 
       # ၇။ Sign လုပ်ပြီးသား APK ဖိုင်ကို သိမ်းဆည်းခြင်း
       - name: Upload Release APK
